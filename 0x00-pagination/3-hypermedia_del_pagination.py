@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Contains class with methods to create simple pagination from csv data
+Contains class that helps pagination from csv data with methods
 """
 import csv
 from typing import List
