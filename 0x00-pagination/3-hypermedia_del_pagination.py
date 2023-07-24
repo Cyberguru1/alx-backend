@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Contains class that helps pagination from csv data with methods
+Deletion-resilient hypermedia pagination
 """
+
 import csv
-from typing import List
-index_range = __import__('0-simple_helper_function').index_range
+import math
+from typing import List, Dict
 
 
 class Server:
@@ -14,12 +15,10 @@ class Server:
 
     def __init__(self):
         self.__dataset = None
+        self.__indexed_dataset = None
 
     def dataset(self) -> List[List]:
-        """
-        Reads from csv file and returns the dataset.
-        Returns:
-            List[List]: The dataset.
+        """Cached dataset
         """
         if self.__dataset is None:
             with open(self.DATA_FILE) as f:
@@ -29,51 +28,47 @@ class Server:
 
         return self.__dataset
 
-    @staticmethod
-    def assert_positive_integer_type(value: int) -> None:
+    def indexed_dataset(self) -> Dict[int, List]:
+        """Dataset indexed by sorting position, starting at 0
         """
-        Asserts that the value is a positive integer.
-        Args:
-            value (int): The value to be asserted.
-        """
-        assert type(value) is int and value > 0
+        if self.__indexed_dataset is None:
+            dataset = self.dataset()
+            truncated_dataset = dataset[:1000]
+            self.__indexed_dataset = {
+                i: dataset[i] for i in range(len(dataset))
+            }
+        return self.__indexed_dataset
 
-    def get_page(self, page: int = 1, page_size: int = 10) -> List[List]:
+    def get_hyper_index(self, index: int = None, page_size: int = 10) -> Dict:
         """
-        Returns a page of the dataset.
+        Takes 2 integer arguments and returns a dictionary with
+        the following key-value pairs:
+            index: index of the first item in the current page
+            next_index: index of the first item in the next page
+            page_size: the current page size
+            data: actual page of the dataset
         Args:
-            page (int): The page number.
-            page_size (int): The page size.
-        Returns:
-            List[List]: The page of the dataset.
+            index(int): first required index
+            page_size(int): required number of records per page
         """
-        self.assert_positive_integer_type(page)
-        self.assert_positive_integer_type(page_size)
-        dataset = self.dataset()
-        start, end = index_range(page, page_size)
-        try:
-            data = dataset[start:end]
-        except IndexError:
-            data = []
-        return data
+        dataset = self.indexed_dataset()
+        data_length = len(dataset)
+        assert 0 <= index < data_length
+        response = {}
+        data = []
+        response['index'] = index
+        for i in range(page_size):
+            while True:
+                curr = dataset.get(index)
+                index += 1
+                if curr is not None:
+                    break
+            data.append(curr)
 
-    def get_hyper(self, page: int = 1, page_size: int = 10) -> dict:
-        """
-        Returns a page of the dataset.
-        Args:
-            page (int): The page number.
-            page_size (int): The page size.
-        Returns:
-            List[List]: The page of the dataset.
-        """
-        total_pages = len(self.dataset()) // page_size + 1
-        data = self.get_page(page, page_size)
-        info = {
-            "page": page,
-            "page_size": page_size if page_size <= len(data) else len(data),
-            "total_pages": total_pages,
-            "data": data,
-            "prev_page": page - 1 if page > 1 else None,
-            "next_page": page + 1 if page + 1 <= total_pages else None
-        }
-        return info
+        response['data'] = data
+        response['page_size'] = len(data)
+        if dataset.get(index):
+            response['next_index'] = index
+        else:
+            response['next_index'] = None
+        return response
