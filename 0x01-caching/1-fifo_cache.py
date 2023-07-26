@@ -4,6 +4,7 @@ FIFOCache
 """
 from base_caching import BaseCaching
 
+
 class FIFOCache(BaseCaching):
     """_summary_
 
@@ -15,7 +16,7 @@ class FIFOCache(BaseCaching):
         """_summary_
         """
         BaseCaching.__init__(self)
-    
+
     def put(self, key, item):
         """_summary_
 
@@ -26,9 +27,12 @@ class FIFOCache(BaseCaching):
         if key is None or item is None:
             pass
 
-        if len(self.cache_data) > BaseCaching.MAX_ITEMS:
+        length = len(self.cache_data.items())
+        keys = list(self.cache_data.keys())
+
+        if length >= BaseCaching.MAX_ITEMS and key not in keys:
             disKey = list(self.cache_data.keys())[0]
-            print(f"DISCARD: {disKey}\n")
+            print(f"DISCARD: {disKey}")
             del self.cache_data[disKey]
 
         self.cache_data[key] = item
@@ -42,5 +46,3 @@ class FIFOCache(BaseCaching):
         if key is None or key not in self.cache_data.keys():
             return None
         return self.cache_data[key]
-
-
